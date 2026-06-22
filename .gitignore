@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.streamlit/
+cf_scan.log
+cf_predict.log
+cloudflared.exe
+temp.csv
