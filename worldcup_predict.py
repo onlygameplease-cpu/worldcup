@@ -70,21 +70,22 @@ GEMINI_MODEL = "gemini-3.5-flash"
 GEMINI_MODEL = normalize_gemini_model(GEMINI_MODEL)
 
 # Prefer env var so you don't hardcode secrets in code:
-
+# ---------------------------------------------------------
+# GEMINI API CONFIGURATION
+# ---------------------------------------------------------
+# CẢNH BÁO: KHÔNG dán cứng API Key vào đây để tránh bị lộ trên GitHub.
+# Vui lòng dùng biến môi trường (Environment Variable) hoặc Streamlit Secrets.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_API_KEY_2 = os.getenv("GEMINI_API_KEY_2", "").strip()
+GEMINI_API_KEY_3 = os.getenv("GEMINI_API_KEY_3", "").strip()
+GEMINI_API_KEY_4 = os.getenv("GEMINI_API_KEY_4", "").strip()
+GEMINI_API_KEY_5 = os.getenv("GEMINI_API_KEY_5", "").strip()
 
-# Or paste directly:
-
-GEMINI_API_KEY = "AIzaSyD7FV86vqaDDQYjULoCbtUxpeu270dbRDU"
-
-GEMINI_API_KEY_2 = "AIzaSyCpiLXmB57SM-Dbqu5dAK4hm8ksVPP3j9A"  # Paste backup Gemini key here, then change AI_API_KEY below to GEMINI_API_KEY_2 when needed.
-GEMINI_API_KEY_3 = "AIzaSyBJGpbBIWcE83WwrefK03xkHKGBECseEgM"
-GEMINI_API_KEY_4 = "AIzaSyDp4xWd5V3BopMyMK1wpccbaMj6auQcZZo"
-GEMINI_API_KEY_5 = "AIzaSyDJz-UN2QBcucwHM3jXjbOfA3Bri2UZ9L0"
+# Danh sách các key để xoay vòng tự động khi một key hết hạn quota (Tránh lỗi 429)
+API_KEYS = [k for k in [GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, GEMINI_API_KEY_4, GEMINI_API_KEY_5] if k]
+AI_API_KEY = API_KEYS[0] if API_KEYS else ""
 
 AI_API_URL = f"https://generativelanguage.googleapis.com/{GEMINI_API_VERSION}/models/{GEMINI_MODEL}:generateContent"
-
-AI_API_KEY = GEMINI_API_KEY
 
 # ---------- OpenAI API (hidden from UI) ----------
 
@@ -5164,8 +5165,10 @@ with tabs[5]:
                         return ""
                     try:
                         odd_str = pick_str.split("(@")[1].replace(")", "").strip()
-                        odd = float(odd_str)
-                        return calculate_fixed_profit_stake(odd)
+                        dec_odd = float(odd_str)
+                        # API trả về Decimal Odd (Ví dụ: 1.909). Cần trừ 1 để ra Hong Kong Odd (0.909) tính lợi nhuận ròng
+                        hk_odd = dec_odd - 1.0 if dec_odd > 1.0 else dec_odd
+                        return calculate_fixed_profit_stake(hk_odd)
                     except:
                         return ""
 

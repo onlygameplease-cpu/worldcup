@@ -37,10 +37,13 @@ GEMINI_MODEL = "gemini-3.5-flash"
 GEMINI_MODEL = normalize_gemini_model(GEMINI_MODEL)
 
 # Prefer env var so you don't hardcode secrets in code:
+# ---------------------------------------------------------
+# GEMINI API CONFIGURATION
+# ---------------------------------------------------------
+# CẢNH BÁO: KHÔNG dán cứng API Key vào đây để tránh bị lộ trên GitHub.
+# Vui lòng dùng biến môi trường (Environment Variable) hoặc Streamlit Secrets.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-# Or paste directly:
-GEMINI_API_KEY = "AIzaSyD7FV86vqaDDQYjULoCbtUxpeu270dbRDU"
-GEMINI_API_KEY_2 = "AIzaSyCpiLXmB57SM-Dbqu5dAK4hm8ksVPP3j9A"  # Paste backup Gemini key here, then change AI_API_KEY below to GEMINI_API_KEY_2 when needed.
+GEMINI_API_KEY_2 = os.getenv("GEMINI_API_KEY_2", "").strip()
 
 AI_API_URL = f"https://generativelanguage.googleapis.com/{GEMINI_API_VERSION}/models/{GEMINI_MODEL}:generateContent"
 AI_API_KEY = GEMINI_API_KEY
