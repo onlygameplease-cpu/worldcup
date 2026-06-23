@@ -10,6 +10,8 @@ import os
 
 import requests
 
+import time
+
 import io
 
 import numpy as np
@@ -174,47 +176,42 @@ HƯỚNG DẪN TRÍCH XUẤT CHẶT CHẼ:
 
     
 
-    try:
+    max_retries = 3
+    retry_delay = 5  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(url, json=payload, timeout=60)
 
-        resp = requests.post(url, json=payload, timeout=60)
-
-        if resp.status_code != 200:
-
-            return {"error": f"Lỗi gọi Gemini API ({resp.status_code}): {resp.text}"}
-
-        
-
-        data = resp.json()
-
-        raw_text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-
-        
-
-        raw_text = raw_text.strip()
-
-        if raw_text.startswith("```json"):
-
-            raw_text = raw_text[7:]
-
-        if raw_text.startswith("```"):
-
-            raw_text = raw_text[3:]
-
-        if raw_text.endswith("```"):
-
-            raw_text = raw_text[:-3]
-
-        raw_text = raw_text.strip()
-
+            if resp.status_code in [503, 429]:
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    return {"error": f"Lỗi gọi Gemini API ({resp.status_code}) sau {max_retries} lần thử: {resp.text}"}
+            elif resp.status_code != 200:
+                return {"error": f"Lỗi gọi Gemini API ({resp.status_code}): {resp.text}"}
             
-
-        parsed_json = json.loads(raw_text)
-
-        return {"parsed": parsed_json, "raw": raw_text}
-
-    except Exception as e:
-
-        return {"error": f"Lỗi Exception: {str(e)}"}
+            data = resp.json()
+            raw_text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            
+            raw_text = raw_text.strip()
+            if raw_text.startswith("```json"):
+                raw_text = raw_text[7:]
+            if raw_text.startswith("```"):
+                raw_text = raw_text[3:]
+            if raw_text.endswith("```"):
+                raw_text = raw_text[:-3]
+            raw_text = raw_text.strip()
+                
+            parsed_json = json.loads(raw_text)
+            return {"parsed": parsed_json, "raw": raw_text}
+            
+        except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+            return {"error": f"Lỗi Exception sau {max_retries} lần thử: {str(e)}"}
 
 
 
@@ -456,6 +453,29 @@ if os.path.exists(DB_FILE):
     st.dataframe(df_db, use_container_width=True)
 
 else:
-
     st.info("Database hiện đang trống. Hãy quét ảnh để thêm dữ liệu!")
 
+# --- BACKUP & RESTORE ---
+st.markdown("---")
+st.subheader("💾 Backup & Đồng bộ dữ liệu (Dành cho Du lịch)")
+st.info("Khi chạy trên Web (Streamlit Cloud), dữ liệu quét mới sẽ bị mất nếu server ngủ đông. Hãy tải file CSV về máy/điện thoại, và Upload ngược lại khi cần dùng.")
+
+col1, col2 = st.columns(2)
+with col1:
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, "rb") as f:
+            st.download_button(
+                label="⬇️ Tải file Database (CSV) về máy",
+                data=f,
+                file_name="advanced_stats.csv",
+                mime="text/csv",
+                type="primary"
+            )
+
+with col2:
+    uploaded_db = st.file_uploader("⬆️ Upload file CSV để Phục hồi", type=["csv"], key="restore_db")
+    if uploaded_db is not None:
+        if st.button("⚠️ Xác nhận Phục hồi (Ghi đè DB hiện tại)"):
+            with open(DB_FILE, "wb") as f:
+                f.write(uploaded_db.getbuffer())
+            st.success("✅ Phục hồi Database thành công! Hãy tải lại trang (F5).")
