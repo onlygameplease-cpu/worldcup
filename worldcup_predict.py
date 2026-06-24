@@ -1388,6 +1388,26 @@ def filter_matched_odds_with_poisson(matched_odds, team_a_stats, team_b_stats):
         picks["blowout_fav_side"] = fav_side
         picks["blowout_rank_a"] = rank_a
         picks["blowout_rank_b"] = rank_b
+        
+    # --- CIRCUIT BREAKER: SHOT QUALITY FILTER ---
+    from poisson import CIRCUIT_BREAKER_CONFIG
+    
+    home_sq = float(team_a_stats.get('avg_xG', 1.0)) / max(float(team_a_stats.get('avg_Total_Shots', 1.0) or 1.0), 1.0)
+    away_sq = float(team_b_stats.get('avg_xG', 1.0)) / max(float(team_b_stats.get('avg_Total_Shots', 1.0) or 1.0), 1.0)
+    
+    tp = picks.get("totals_pick") or ""
+    if "Over" in tp:
+        cfg = CIRCUIT_BREAKER_CONFIG["tier_1_heavy_possession"]
+        home_poss = float(team_a_stats.get("avg_Possession") or 50.0)
+        away_poss = float(team_b_stats.get("avg_Possession") or 50.0)
+        
+        if home_poss >= cfg["possession_floor"] and home_sq < cfg["sq_ceiling"]:
+            picks["totals_pick"] = f"{cfg['fallback_action']} (SQ={home_sq:.2f})"
+            picks["debug"].append(f"⚠️ SHOT QUALITY CIRCUIT BREAKER: Home Possession {home_poss}% > {cfg['possession_floor']} nhưng SQ {home_sq:.3f} < {cfg['sq_ceiling']}. Ép khóa kèo Over.")
+            
+        elif away_poss >= cfg["possession_floor"] and away_sq < cfg["sq_ceiling"]:
+            picks["totals_pick"] = f"{cfg['fallback_action']} (SQ={away_sq:.2f})"
+            picks["debug"].append(f"⚠️ SHOT QUALITY CIRCUIT BREAKER: Away Possession {away_poss}% > {cfg['possession_floor']} nhưng SQ {away_sq:.3f} < {cfg['sq_ceiling']}. Ép khóa kèo Over.")
     # --- END CIRCUIT BREAKER ---
     
     # --- DEBUG INFO ---

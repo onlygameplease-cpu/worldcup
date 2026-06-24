@@ -4,6 +4,19 @@ import math
 from scipy.stats import poisson
 from metrics import check_physical_dominance
 
+CIRCUIT_BREAKER_CONFIG = {
+    "tier_1_heavy_possession": {
+        "possession_floor": 65.0,
+        "sq_ceiling": 0.09,
+        "fallback_action": "NO BET"
+    },
+    "default_context": {
+        "possession_floor": 60.0,
+        "sq_ceiling": 0.075,
+        "fallback_action": "NO BET"
+    }
+}
+
 def calculate_gk_ema(history_prevented_goals, span=3):
     if not history_prevented_goals or len(history_prevented_goals) == 0:
         return 0.0
@@ -57,7 +70,25 @@ def predict_poisson_market_probs(home_ema_xg, away_ema_xg, home_stats=None, away
             home_ema_xg *= 1.08
             away_ema_xg *= 1.08
             reasons.append({"rule": "discipline_risk_fat_tail", "impact": "Lambda x 1.08", "severity": "high"})
+
+        # --- CENTRAL CIRCUIT BREAKER (STERILE POSSESSION IRON WALL) ---
+        home_possession = float(home_stats.get("avg_Possession") or 50.0)
+        away_possession = float(away_stats.get("avg_Possession") or 50.0)
+        home_xg_conceded = float(away_stats.get("avg_xG_Conceded") or 1.25)
+        away_xg_conceded = float(home_stats.get("avg_xG_Conceded") or 1.25)
+
+        home_aer = home_ema_xg / max(away_xg_conceded, 0.1)
+        away_aer = away_ema_xg / max(home_xg_conceded, 0.1)
+
+        if home_possession > 60.0 and home_aer < 1.15:
+            home_ema_xg *= 0.85
+            reasons.append({"rule": "sterile_possession_iron_wall", "impact": "Home Lambda scaled by 0.85", "severity": "high"})
             
+        if away_possession > 60.0 and away_aer < 1.15:
+            away_ema_xg *= 0.85
+            reasons.append({"rule": "sterile_possession_iron_wall", "impact": "Away Lambda scaled by 0.85", "severity": "high"})
+        # --------------------------------------------------------------
+
         # 1. GOALKEEPING VOLATILITY FILTER
         is_home_fav = float(home_stats.get("latest_Rank") or 100) < float(away_stats.get("latest_Rank") or 100)
         underdog_stats = away_stats if is_home_fav else home_stats

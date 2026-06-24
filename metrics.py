@@ -94,6 +94,10 @@ def extract_adv_metrics(df_sub, team_name):
     metrics["avg_Touches_In_Box"] = get_avg("Touches_In_Box_Home", "Touches_In_Box_Away", apply_multiplier=True)
     metrics["avg_Goals_Prevented"] = get_avg("Goals_Prevented_Home", "Goals_Prevented_Away")
     
+    # Circuit Breaker Metrics
+    metrics["avg_Total_Shots"] = get_avg("Total_Shots_Home", "Total_Shots_Away", apply_multiplier=False)
+    metrics["avg_Possession"] = get_avg("Possession_Home", "Possession_Away", apply_multiplier=False)
+    
     # --- SAMPLE-SIZE MEAN REVERSION ---
     if metrics["xG"] is not None:
         metrics["xG"] = round(metrics["xG"] * trust + BASELINE_XG * (1 - trust), 2)
